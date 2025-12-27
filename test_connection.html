@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test API Connection</title>
+</head>
+<body>
+    <h1>Testing Backend Connection</h1>
+    <button onclick="testAPI()">Test API</button>
+    <div id="result"></div>
+
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                // Test health endpoint
+                const healthResponse = await fetch('http://localhost:8000/health');
+                const healthData = await healthResponse.json();
+                
+                // Test prediction endpoint
+                const predictionResponse = await fetch('http://localhost:8000/api/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: 'This is a test news article.',
+                        language: 'en'
+                    })
+                });
+                
+                const predictionData = await predictionResponse.json();
+                
+                resultDiv.innerHTML = `
+                    <h3>✅ Connection Successful!</h3>
+                    <p><strong>Health Status:</strong> ${healthData.status}</p>
+                    <p><strong>Test Prediction:</strong> ${predictionData.prediction} (${predictionData.confidence}% confidence)</p>
+                    <p><strong>Explanation:</strong> ${predictionData.explanation}</p>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h3>❌ Connection Failed</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p>Make sure the backend is running on http://localhost:8000</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

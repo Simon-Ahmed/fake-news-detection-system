@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+backend/venv/
+backend/__pycache__/
+backend/app/__pycache__/
+backend/app/ml/__pycache__/
+backend/app/routes/__pycache__/
+
+# Build outputs
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database files
+backend/*.db
+backend/fake_news.db
+
+# Logs
+backend/logs/
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+~*.tmp
+~WRL*.tmp
+
+# Python cache
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Model files (if large)
+backend/models/*.pkl
+backend/models/*.joblib
+backend/models/*.h5
+
+# Backup files
+*.backup
+*_backup.json

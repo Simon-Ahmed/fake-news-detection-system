@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Data and Restart</title>
+</head>
+<body>
+    <h1>Clearing All Data...</h1>
+    <p>This will clear all localStorage data and prepare for fresh start.</p>
+    
+    <script>
+        // Clear all localStorage
+        localStorage.clear();
+        
+        // Clear sessionStorage too
+        sessionStorage.clear();
+        
+        console.log('All local data cleared!');
+        
+        // Show confirmation
+        document.body.innerHTML = `
+            <h1>✅ Data Cleared Successfully!</h1>
+            <p>All previous data has been cleared from your browser.</p>
+            <p>You can now close this tab and start fresh with the application.</p>
+            <p><strong>Next steps:</strong></p>
+            <ol>
+                <li>Go to <a href="http://localhost:5173" target="_blank">http://localhost:5173</a></li>
+                <li>Start making new predictions</li>
+                <li>Check the History and Dashboard tabs for real data</li>
+            </ol>
+        `;
+    </script>
+</body>
+</html>
