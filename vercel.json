@@ -17,7 +17,7 @@
     }
   ],
   "env": {
-    "VITE_API_URL": "https://your-actual-railway-url.railway.app"
+    "VITE_API_URL": "https://fake-news-detection-system-production.up.railway.app"
   },
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
