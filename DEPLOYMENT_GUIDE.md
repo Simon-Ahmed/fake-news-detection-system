@@ -21,54 +21,26 @@ Complete Working System
 
 ## 📋 Step-by-Step Deployment
 
-### **STEP 1: Deploy Backend to Railway (Without GitHub)**
+### **STEP 1: Deploy Backend to Railway**
 
-**Option A: Railway CLI (Recommended)**
-1. **Install Railway CLI**: 
-   ```bash
-   npm install -g @railway/cli
-   ```
-2. **Login to Railway**:
-   ```bash
-   railway login
-   ```
-3. **Navigate to backend folder**:
-   ```bash
-   cd backend
-   ```
-4. **Initialize Railway project**:
-   ```bash
-   railway init
-   ```
-5. **Set environment variables**:
-   ```bash
-   railway variables set PORT=8000
-   railway variables set DATABASE_URL=sqlite:///./fake_news.db
-   railway variables set ENVIRONMENT=production
-   ```
-6. **Deploy**:
-   ```bash
-   railway up
-   ```
-7. **Get your URL**:
-   ```bash
-   railway domain
-   ```
+**Your Repository**: https://github.com/Simon-Ahmed/fake-news-detection-system
 
-**Option B: Railway Web Upload**
 1. **Go to Railway**: https://railway.app
-2. **Create New Project** → "Empty Project"
-3. **Add Service** → "Empty Service"
-4. **Go to Settings** → **Source** → "Local Directory"
-5. **Zip your backend folder** and upload
-6. **Set Start Command**: `python real_server.py`
-7. **Add Environment Variables**:
-   ```
-   PORT=8000
-   DATABASE_URL=sqlite:///./fake_news.db
-   ENVIRONMENT=production
-   ```
-8. **Deploy** and copy the URL
+2. **Sign up/Login** with GitHub
+3. **Create New Project** → "Deploy from GitHub repo"
+4. **Select your repository**: `Simon-Ahmed/fake-news-detection-system`
+5. **Configure deployment**:
+   - **Root Directory**: `backend`
+   - **Start Command**: `python real_server.py`
+   - **Environment Variables**:
+     ```
+     PORT=8000
+     DATABASE_URL=sqlite:///./fake_news.db
+     ENVIRONMENT=production
+     LOG_LEVEL=INFO
+     ```
+6. **Deploy** and wait for completion
+7. **Copy the Railway URL**: `https://your-backend-xxxxx.railway.app`
 
 ### **STEP 2: Update Frontend Configuration**
 
@@ -88,54 +60,27 @@ Complete Working System
    }
    ```
 
-### **STEP 3: Deploy Frontend to Vercel (Without GitHub)**
+### **STEP 3: Deploy Frontend to Vercel**
 
-**Option A: Vercel CLI (Recommended)**
-1. **Install Vercel CLI**:
-   ```bash
-   npm install -g vercel
+1. **Go to Vercel**: https://vercel.com
+2. **Sign up/Login** with GitHub
+3. **Import Project** → Select your repository: `Simon-Ahmed/fake-news-detection-system`
+4. **Configure Project**:
+   - **Framework Preset**: Vite
+   - **Root Directory**: `/` (project root)
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+   - **Install Command**: `npm install`
+
+5. **Environment Variables** (in Vercel dashboard):
    ```
-2. **Login to Vercel**:
-   ```bash
-   vercel login
-   ```
-3. **Navigate to project root**:
-   ```bash
-   cd /path/to/your/project
-   ```
-4. **Build the project**:
-   ```bash
-   npm run build
-   ```
-5. **Deploy**:
-   ```bash
-   vercel --prod
-   ```
-6. **Set environment variables during setup**:
-   ```
-   VITE_API_URL = https://your-railway-url.railway.app
+   VITE_API_URL = https://your-backend-xxxxx.railway.app
    VITE_APP_NAME = Fake News Detector
    VITE_ENVIRONMENT = production
    ```
 
-**Option B: Vercel Web Upload**
-1. **Build your project locally**:
-   ```bash
-   npm run build
-   ```
-2. **Go to Vercel**: https://vercel.com
-3. **Create New Project** → "Browse All Templates" → "Other"
-4. **Upload your `dist` folder** (drag and drop)
-5. **Configure**:
-   - **Framework Preset**: Other
-   - **Root Directory**: `/`
-6. **Add Environment Variables** in dashboard:
-   ```
-   VITE_API_URL = https://your-railway-url.railway.app
-   VITE_APP_NAME = Fake News Detector
-   VITE_ENVIRONMENT = production
-   ```
-7. **Deploy**
+6. **Deploy** and wait for completion
+7. **Get your Vercel URL**: `https://fake-news-detection-system.vercel.app`
 
 ---
 
