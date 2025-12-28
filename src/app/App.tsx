@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { ThemeProvider } from 'next-themes';
+import React, { useState, useEffect } from 'react';
 import { Toaster } from './components/ui/sonner';
 import { Button } from './components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
@@ -11,7 +10,41 @@ import { Dashboard } from './components/Dashboard';
 import { AboutPage } from './components/AboutPage';
 import { predictFakeNews, PredictionResult } from '../services/api';
 import { Moon, Sun, Shield, Activity, Info, History } from 'lucide-react';
-import { useTheme } from 'next-themes';
+
+// Simple theme context without next-themes
+const ThemeContext = React.createContext<{
+  theme: string;
+  setTheme: (theme: string) => void;
+}>({
+  theme: 'light',
+  setTheme: () => {},
+});
+
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState('light');
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+    document.documentElement.className = savedTheme;
+  }, []);
+
+  const updateTheme = (newTheme: string) => {
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.documentElement.className = newTheme;
+  };
+
+  return (
+    <ThemeContext.Provider value={{ theme, setTheme: updateTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+function useTheme() {
+  return React.useContext(ThemeContext);
+}
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -215,7 +248,7 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider>
       <AppContent />
     </ThemeProvider>
   );
