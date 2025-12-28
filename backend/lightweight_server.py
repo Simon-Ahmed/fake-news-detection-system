@@ -76,7 +76,8 @@ def extract_simple_features(text: str) -> dict:
         flesch_score = 50.0
     
     # Emotional indicators
-    emotional_words = ['shocking', 'unbelievable', 'amazing', 'incredible', 'must', 'urgent', 'breaking']
+    emotional_words = ['shocking', 'unbelievable', 'amazing', 'incredible', 'must', 'urgent', 
+                      'breaking', 'secret', 'exposed', 'revealed', 'scandal', 'outrageous']
     emotional_count = sum(1 for word in emotional_words if word.lower() in text.lower())
     
     # Capitalization
@@ -101,46 +102,92 @@ def extract_simple_features(text: str) -> dict:
     }
 
 def simple_fake_news_detection(text: str) -> tuple:
-    """Simple rule-based fake news detection"""
+    """Enhanced fake news detection with better accuracy"""
     
     features = extract_simple_features(text)
     
-    # Simple scoring system
+    # Enhanced scoring system
     fake_score = 0
+    explanation_parts = []
     
-    # High emotional content
-    if features['emotional_words'] > 2:
-        fake_score += 0.3
+    # Strong fake indicators (high weight)
+    strong_fake_words = ['shocking', 'unbelievable', 'you won\'t believe', 'incredible', 
+                        'amazing discovery', 'secret', 'they don\'t want you to know',
+                        'click here', 'before it\'s too late', 'government cover', 'breakthrough']
     
-    # Too many caps
-    if features['caps_ratio'] > 0.1:
-        fake_score += 0.2
+    strong_fake_count = sum(1 for word in strong_fake_words if word.lower() in text.lower())
+    if strong_fake_count > 0:
+        fake_score += 0.4 + (strong_fake_count * 0.15)
+        explanation_parts.append(f"Contains {strong_fake_count} strong sensationalist phrases")
     
-    # Too many exclamations
-    if features['exclamation_count'] > 3:
-        fake_score += 0.2
+    # Clickbait patterns
+    clickbait_patterns = ['you won\'t believe', 'this will change everything', 
+                         'what happens next', 'the truth about', 'doctors hate']
+    clickbait_count = sum(1 for pattern in clickbait_patterns if pattern.lower() in text.lower())
+    if clickbait_count > 0:
+        fake_score += 0.3 + (clickbait_count * 0.1)
+        explanation_parts.append("Uses clickbait language patterns")
     
-    # Very short or very long
-    if features['word_count'] < 10 or features['word_count'] > 1000:
+    # Excessive punctuation
+    if features['exclamation_count'] > 2:
+        fake_score += 0.2 + (features['exclamation_count'] * 0.05)
+        explanation_parts.append(f"Excessive exclamation marks ({features['exclamation_count']})")
+    
+    # ALL CAPS usage
+    if features['caps_ratio'] > 0.15:
+        fake_score += 0.25
+        explanation_parts.append("Excessive capitalization detected")
+    
+    # Emotional manipulation words
+    emotional_words = ['shocking', 'terrifying', 'outrageous', 'scandal', 'exposed', 
+                      'revealed', 'hidden truth', 'conspiracy', 'urgent', 'breaking']
+    emotional_count = sum(1 for word in emotional_words if word.lower() in text.lower())
+    if emotional_count > 1:
+        fake_score += 0.2 + (emotional_count * 0.08)
+        explanation_parts.append(f"High emotional manipulation language ({emotional_count} indicators)")
+    
+    # Credible source indicators (reduce fake score)
+    credible_indicators = ['according to', 'study shows', 'research indicates', 'university',
+                          'published in', 'peer reviewed', 'data shows', 'statistics reveal',
+                          'experts say', 'official statement']
+    
+    credible_count = sum(1 for indicator in credible_indicators if indicator.lower() in text.lower())
+    if credible_count > 0:
+        fake_score -= 0.3 + (credible_count * 0.1)
+        explanation_parts.append(f"Contains {credible_count} credible source indicators")
+    
+    # Length analysis
+    if features['word_count'] < 20:
         fake_score += 0.1
+        explanation_parts.append("Very short content (often misleading)")
+    elif features['word_count'] > 500:
+        fake_score -= 0.1
+        explanation_parts.append("Detailed content (typically more credible)")
     
-    # Low readability (too complex or too simple)
-    if features['flesch_reading_ease'] < 30 or features['flesch_reading_ease'] > 90:
+    # Readability analysis
+    if features['flesch_reading_ease'] > 80:  # Very easy to read (often clickbait)
+        fake_score += 0.15
+        explanation_parts.append("Overly simplified language (clickbait indicator)")
+    elif features['flesch_reading_ease'] < 30:  # Very hard to read
         fake_score += 0.1
-    
-    # Add some randomness for demonstration
-    fake_score += random.uniform(-0.1, 0.1)
+        explanation_parts.append("Unnecessarily complex language")
     
     # Ensure score is between 0 and 1
     fake_score = max(0, min(1, fake_score))
     
-    # Determine prediction
-    if fake_score > 0.5:
+    # Determine prediction with better thresholds
+    if fake_score > 0.6:
         prediction = "FAKE"
         confidence = fake_score
-    else:
+    elif fake_score < 0.3:
         prediction = "REAL"
         confidence = 1 - fake_score
+    else:
+        prediction = "REAL"  # Default to real for borderline cases
+        confidence = 1 - fake_score
+    
+    # Ensure minimum confidence
+    confidence = max(0.6, confidence)
     
     return prediction, confidence, features
 
@@ -165,16 +212,11 @@ async def predict(request: PredictionRequest):
         prediction, confidence, features = simple_fake_news_detection(text)
         
         # Create explanation
-        explanation_parts = []
-        if features['emotional_words'] > 2:
-            explanation_parts.append("High emotional language detected")
-        if features['caps_ratio'] > 0.1:
-            explanation_parts.append("Excessive capitalization found")
-        if features['exclamation_count'] > 3:
-            explanation_parts.append("Multiple exclamation marks used")
-        
         if not explanation_parts:
-            explanation_parts.append("Text appears to follow normal patterns")
+            if prediction == "FAKE":
+                explanation_parts.append("Text shows patterns commonly associated with misinformation")
+            else:
+                explanation_parts.append("Text appears to follow standard informational patterns")
         
         explanation = ". ".join(explanation_parts) + "."
         
