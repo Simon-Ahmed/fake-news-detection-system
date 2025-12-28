@@ -9,6 +9,7 @@ from pydantic import BaseModel
 import sqlite3
 import json
 import os
+import uuid
 from datetime import datetime
 import random
 import re
@@ -60,10 +61,18 @@ class PredictionRequest(BaseModel):
     analysis_type: str = "text"
 
 class PredictionResponse(BaseModel):
+    id: str
     prediction: str
     confidence: float
     explanation: str
-    features: dict
+    factors: list
+    sources: list
+    timestamp: str
+    input_text: str
+    input_url: str = None
+    analysis_type: str
+    model_version: str
+    processing_time: float = 0.1
 
 def extract_simple_features(text: str) -> dict:
     """Extract simple linguistic features without heavy ML"""
@@ -113,6 +122,7 @@ def simple_fake_news_detection(text: str) -> tuple:
     # Enhanced scoring system
     fake_score = 0
     explanation_parts = []
+    factors = []
     
     # Strong fake indicators (high weight)
     strong_fake_words = ['shocking', 'unbelievable', 'you won\'t believe', 'incredible', 
@@ -123,6 +133,12 @@ def simple_fake_news_detection(text: str) -> tuple:
     if strong_fake_count > 0:
         fake_score += 0.4 + (strong_fake_count * 0.15)
         explanation_parts.append(f"Contains {strong_fake_count} strong sensationalist phrases")
+        factors.append({
+            "name": "Sensationalist Language",
+            "score": min(100, strong_fake_count * 25),
+            "impact": "negative",
+            "description": f"Found {strong_fake_count} sensationalist phrases"
+        })
     
     # Clickbait patterns
     clickbait_patterns = ['you won\'t believe', 'this will change everything', 
@@ -131,16 +147,34 @@ def simple_fake_news_detection(text: str) -> tuple:
     if clickbait_count > 0:
         fake_score += 0.3 + (clickbait_count * 0.1)
         explanation_parts.append("Uses clickbait language patterns")
+        factors.append({
+            "name": "Clickbait Patterns",
+            "score": min(100, clickbait_count * 30),
+            "impact": "negative",
+            "description": f"Found {clickbait_count} clickbait patterns"
+        })
     
     # Excessive punctuation
     if features['exclamation_count'] > 2:
         fake_score += 0.2 + (features['exclamation_count'] * 0.05)
         explanation_parts.append(f"Excessive exclamation marks ({features['exclamation_count']})")
+        factors.append({
+            "name": "Excessive Punctuation",
+            "score": min(100, features['exclamation_count'] * 15),
+            "impact": "negative",
+            "description": f"{features['exclamation_count']} exclamation marks detected"
+        })
     
     # ALL CAPS usage
     if features['caps_ratio'] > 0.15:
         fake_score += 0.25
         explanation_parts.append("Excessive capitalization detected")
+        factors.append({
+            "name": "Excessive Capitalization",
+            "score": min(100, features['caps_ratio'] * 200),
+            "impact": "negative",
+            "description": f"{features['caps_ratio']:.1%} of text is capitalized"
+        })
     
     # Emotional manipulation words
     emotional_words = ['shocking', 'terrifying', 'outrageous', 'scandal', 'exposed', 
@@ -149,6 +183,12 @@ def simple_fake_news_detection(text: str) -> tuple:
     if emotional_count > 1:
         fake_score += 0.2 + (emotional_count * 0.08)
         explanation_parts.append(f"High emotional manipulation language ({emotional_count} indicators)")
+        factors.append({
+            "name": "Emotional Manipulation",
+            "score": min(100, emotional_count * 20),
+            "impact": "negative",
+            "description": f"Found {emotional_count} emotional manipulation words"
+        })
     
     # Credible source indicators (reduce fake score)
     credible_indicators = ['according to', 'study shows', 'research indicates', 'university',
@@ -159,42 +199,78 @@ def simple_fake_news_detection(text: str) -> tuple:
     if credible_count > 0:
         fake_score -= 0.3 + (credible_count * 0.1)
         explanation_parts.append(f"Contains {credible_count} credible source indicators")
+        factors.append({
+            "name": "Credible Sources",
+            "score": min(100, credible_count * 25),
+            "impact": "positive",
+            "description": f"Found {credible_count} credible source indicators"
+        })
     
     # Length analysis - improved for short texts
     if features['word_count'] < 5:
         fake_score += 0.2
         explanation_parts.append("Extremely short content (often misleading or incomplete)")
+        factors.append({
+            "name": "Content Length",
+            "score": 80,
+            "impact": "negative",
+            "description": "Extremely short content"
+        })
     elif features['word_count'] < 15:
         fake_score += 0.1
         explanation_parts.append("Very short content (may lack context)")
+        factors.append({
+            "name": "Content Length",
+            "score": 60,
+            "impact": "negative",
+            "description": "Very short content"
+        })
     elif features['word_count'] > 500:
         fake_score -= 0.1
         explanation_parts.append("Detailed content (typically more credible)")
+        factors.append({
+            "name": "Content Length",
+            "score": 70,
+            "impact": "positive",
+            "description": "Detailed, comprehensive content"
+        })
     
     # Readability analysis
     if features['flesch_reading_ease'] > 80:  # Very easy to read (often clickbait)
         fake_score += 0.15
         explanation_parts.append("Overly simplified language (clickbait indicator)")
+        factors.append({
+            "name": "Readability",
+            "score": 75,
+            "impact": "negative",
+            "description": "Overly simplified language"
+        })
     elif features['flesch_reading_ease'] < 30:  # Very hard to read
         fake_score += 0.1
         explanation_parts.append("Unnecessarily complex language")
+        factors.append({
+            "name": "Readability",
+            "score": 60,
+            "impact": "negative",
+            "description": "Unnecessarily complex language"
+        })
     
     # Ensure score is between 0 and 1
     fake_score = max(0, min(1, fake_score))
     
     # Determine prediction with better thresholds and confidence
     if fake_score > 0.6:
-        prediction = "FAKE"
+        prediction = "fake"
         confidence = max(0.65, min(0.95, fake_score))  # Ensure reasonable confidence range
     elif fake_score < 0.3:
-        prediction = "REAL"  
+        prediction = "real"  
         confidence = max(0.65, min(0.95, 1 - fake_score))  # Ensure reasonable confidence range
     else:
         # Borderline cases - lean towards real but with lower confidence
-        prediction = "REAL"
+        prediction = "real"
         confidence = max(0.55, min(0.75, 1 - fake_score))
     
-    return prediction, confidence, features, explanation_parts
+    return prediction, confidence, features, explanation_parts, factors
 
 @app.get("/")
 async def root():
@@ -215,19 +291,41 @@ async def predict(request: PredictionRequest):
         
         print(f"🔍 Analyzing: '{text[:50]}...'")
         
-        # Get prediction with detailed explanation
-        prediction, confidence, features, explanation_parts = simple_fake_news_detection(text)
+        # Get prediction with detailed explanation and factors
+        prediction, confidence, features, explanation_parts, factors = simple_fake_news_detection(text)
         
         # Create explanation from detection results
         if not explanation_parts:
-            if prediction == "FAKE":
+            if prediction == "fake":
                 explanation_parts.append("Text shows patterns commonly associated with misinformation")
             else:
                 explanation_parts.append("Text appears to follow standard informational patterns")
         
         explanation = ". ".join(explanation_parts) + "."
         
+        # Create prediction ID
+        prediction_id = str(uuid.uuid4())
+        
+        # Prepare sources
+        sources = ["https://www.snopes.com", "https://www.factcheck.org", "https://www.politifact.com"]
+        
         print(f"📊 Result: {prediction} ({confidence:.3f})")
+        
+        # Create full response structure
+        response_data = {
+            "id": prediction_id,
+            "prediction": prediction,
+            "confidence": round(confidence, 3),
+            "explanation": explanation,
+            "factors": factors,
+            "sources": sources,
+            "timestamp": datetime.now().isoformat(),
+            "input_text": text[:200] + "..." if len(text) > 200 else text,
+            "input_url": None,
+            "analysis_type": getattr(request, 'analysis_type', 'text'),
+            "model_version": "enhanced-v2.0",
+            "processing_time": 0.1
+        }
         
         # Save to database with error handling
         try:
@@ -239,7 +337,11 @@ async def predict(request: PredictionRequest):
             cursor.execute("""
                 INSERT INTO predictions (text, prediction, confidence, analysis_type, features)
                 VALUES (?, ?, ?, ?, ?)
-            """, (text, prediction, confidence, analysis_type, json.dumps(features)))
+            """, (text, prediction, confidence, analysis_type, json.dumps({
+                "features": features,
+                "factors": factors,
+                "explanation_parts": explanation_parts
+            })))
             
             conn.commit()
             conn.close()
@@ -248,14 +350,8 @@ async def predict(request: PredictionRequest):
             
         except Exception as db_error:
             print(f"❌ Database error: {db_error}")
-            # Continue anyway
         
-        return PredictionResponse(
-            prediction=prediction,
-            confidence=round(confidence, 3),
-            explanation=explanation,
-            features=features
-        )
+        return PredictionResponse(**response_data)
         
     except Exception as e:
         print(f"❌ Prediction error: {str(e)}")
