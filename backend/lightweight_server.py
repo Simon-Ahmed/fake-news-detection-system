@@ -212,31 +212,42 @@ async def predict(request: PredictionRequest):
         if not text:
             raise HTTPException(status_code=400, detail="Text cannot be empty")
         
+        print(f"🔍 Analyzing: '{text[:50]}...'")
+        
         # Get prediction
         prediction, confidence, features = simple_fake_news_detection(text)
         
         # Create explanation
-        if not explanation_parts:
-            if prediction == "FAKE":
-                explanation_parts.append("Text shows patterns commonly associated with misinformation")
-            else:
-                explanation_parts.append("Text appears to follow standard informational patterns")
+        explanation_parts = []
+        if prediction == "FAKE":
+            explanation_parts.append("Text shows patterns commonly associated with misinformation")
+        else:
+            explanation_parts.append("Text appears to follow standard informational patterns")
         
         explanation = ". ".join(explanation_parts) + "."
         
-        # Save to database
-        conn = sqlite3.connect(DATABASE_URL)
-        cursor = conn.cursor()
+        print(f"📊 Result: {prediction} ({confidence:.3f})")
         
-        cursor.execute("""
-            INSERT INTO predictions (text, prediction, confidence, analysis_type, features)
-            VALUES (?, ?, ?, ?, ?)
-        """, (text, prediction, confidence, request.analysis_type, json.dumps(features)))
-        
-        conn.commit()
-        conn.close()
-        
-        print(f"✅ Saved prediction: {prediction} ({confidence:.3f}) for '{text[:50]}...'")
+        # Save to database with error handling
+        try:
+            conn = sqlite3.connect(DATABASE_URL)
+            cursor = conn.cursor()
+            
+            analysis_type = getattr(request, 'analysis_type', 'text')
+            
+            cursor.execute("""
+                INSERT INTO predictions (text, prediction, confidence, analysis_type, features)
+                VALUES (?, ?, ?, ?, ?)
+            """, (text, prediction, confidence, analysis_type, json.dumps(features)))
+            
+            conn.commit()
+            conn.close()
+            
+            print(f"✅ Saved to database: {prediction} for '{text[:30]}...'")
+            
+        except Exception as db_error:
+            print(f"❌ Database error: {db_error}")
+            # Continue anyway
         
         return PredictionResponse(
             prediction=prediction,
@@ -246,6 +257,7 @@ async def predict(request: PredictionRequest):
         )
         
     except Exception as e:
+        print(f"❌ Prediction error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 @app.get("/history")
