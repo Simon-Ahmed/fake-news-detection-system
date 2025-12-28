@@ -33,8 +33,11 @@ def init_db():
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
     
+    # Drop existing table to recreate with proper schema
+    cursor.execute("DROP TABLE IF EXISTS predictions")
+    
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS predictions (
+        CREATE TABLE predictions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             text TEXT NOT NULL,
             prediction TEXT NOT NULL,
@@ -47,6 +50,7 @@ def init_db():
     
     conn.commit()
     conn.close()
+    print("✅ Database initialized successfully")
 
 # Initialize database on startup
 init_db()
@@ -330,6 +334,31 @@ async def get_stats():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+
+@app.get("/test-db")
+async def test_database():
+    """Test database connection and add sample data"""
+    try:
+        conn = sqlite3.connect(DATABASE_URL)
+        cursor = conn.cursor()
+        
+        # Add a test record
+        cursor.execute("""
+            INSERT INTO predictions (text, prediction, confidence, analysis_type, features)
+            VALUES (?, ?, ?, ?, ?)
+        """, ("Test news article", "FAKE", 0.85, "text", "{}"))
+        
+        conn.commit()
+        
+        # Check if it was saved
+        cursor.execute("SELECT COUNT(*) FROM predictions")
+        count = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        return {"status": "success", "total_records": count, "message": "Database is working"}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
