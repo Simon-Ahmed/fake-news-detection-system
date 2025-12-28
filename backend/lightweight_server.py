@@ -160,10 +160,13 @@ def simple_fake_news_detection(text: str) -> tuple:
         fake_score -= 0.3 + (credible_count * 0.1)
         explanation_parts.append(f"Contains {credible_count} credible source indicators")
     
-    # Length analysis
-    if features['word_count'] < 20:
+    # Length analysis - improved for short texts
+    if features['word_count'] < 5:
+        fake_score += 0.2
+        explanation_parts.append("Extremely short content (often misleading or incomplete)")
+    elif features['word_count'] < 15:
         fake_score += 0.1
-        explanation_parts.append("Very short content (often misleading)")
+        explanation_parts.append("Very short content (may lack context)")
     elif features['word_count'] > 500:
         fake_score -= 0.1
         explanation_parts.append("Detailed content (typically more credible)")
@@ -179,19 +182,17 @@ def simple_fake_news_detection(text: str) -> tuple:
     # Ensure score is between 0 and 1
     fake_score = max(0, min(1, fake_score))
     
-    # Determine prediction with better thresholds
+    # Determine prediction with better thresholds and confidence
     if fake_score > 0.6:
         prediction = "FAKE"
-        confidence = fake_score
+        confidence = max(0.65, min(0.95, fake_score))  # Ensure reasonable confidence range
     elif fake_score < 0.3:
-        prediction = "REAL"
-        confidence = 1 - fake_score
+        prediction = "REAL"  
+        confidence = max(0.65, min(0.95, 1 - fake_score))  # Ensure reasonable confidence range
     else:
-        prediction = "REAL"  # Default to real for borderline cases
-        confidence = 1 - fake_score
-    
-    # Ensure minimum confidence
-    confidence = max(0.6, confidence)
+        # Borderline cases - lean towards real but with lower confidence
+        prediction = "REAL"
+        confidence = max(0.55, min(0.75, 1 - fake_score))
     
     return prediction, confidence, features
 
