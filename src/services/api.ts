@@ -160,14 +160,37 @@ export const predictFakeNews = async (text: string, url?: string, analysisType?:
   try {
     if (url) {
       // Use URL prediction endpoint
-      const response = await apiRequest<PredictionResult>('/predict', {
+      const response = await apiRequest<{
+        id: string;
+        prediction: string;
+        confidence: number;
+        explanation: string;
+        factors: any[];
+        sources: string[];
+        timestamp: string;
+        input_text: string;
+        input_url: string;
+        analysis_type: string;
+        model_version: string;
+        processing_time?: number;
+      }>('/api/predict/url', {
         method: 'POST',
         body: JSON.stringify({ url, language: 'en' }),
       });
       
       return {
-        ...response,
+        id: response.id,
+        prediction: response.prediction.toLowerCase() === 'fake' ? 'fake' : 'real',
+        confidence: response.confidence,
+        explanation: response.explanation,
+        factors: response.factors || [],
+        sources: response.sources || [],
         timestamp: response.timestamp || new Date().toISOString(),
+        inputText: response.input_text || '',
+        inputUrl: response.input_url || url,
+        modelVersion: response.model_version || 'original-v1.0',
+        processingTime: response.processing_time,
+        analysis_type: 'url'
       };
     } else {
       // Use text prediction endpoint
@@ -179,25 +202,35 @@ export const predictFakeNews = async (text: string, url?: string, analysisType?:
       }
       
       const response = await apiRequest<{
+        id: string;
         prediction: string;
         confidence: number;
         explanation: string;
-        features: any;
-      }>('/predict', {
+        factors: any[];
+        sources: string[];
+        timestamp: string;
+        input_text: string;
+        input_url?: string;
+        analysis_type: string;
+        model_version: string;
+        processing_time?: number;
+      }>('/api/predict', {
         method: 'POST',
         body: JSON.stringify(requestBody),
       });
       
       return {
-        id: Date.now().toString(),
+        id: response.id,
         prediction: response.prediction.toLowerCase() === 'fake' ? 'fake' : 'real',
         confidence: response.confidence,
         explanation: response.explanation,
-        factors: [],
-        sources: [],
-        timestamp: new Date().toISOString(),
-        inputText: text,
-        modelVersion: 'lightweight-v1.0',
+        factors: response.factors || [],
+        sources: response.sources || [],
+        timestamp: response.timestamp || new Date().toISOString(),
+        inputText: response.input_text || text,
+        inputUrl: response.input_url,
+        modelVersion: response.model_version || 'original-v1.0',
+        processingTime: response.processing_time,
         analysis_type: analysisType || 'text'
       };
     }
@@ -244,22 +277,30 @@ export const getModelStats = async (): Promise<ModelStats> => {
   try {
     const response = await apiRequest<{
       total_predictions: number;
-      by_prediction: { [key: string]: number };
-      by_analysis_type: { [key: string]: number };
-    }>('/stats');
+      fake_predictions: number;
+      real_predictions: number;
+      inconclusive_predictions: number;
+      text_predictions: number;
+      url_predictions: number;
+      file_predictions: number;
+      avg_confidence: number;
+      model_accuracy?: number;
+      model_version: string;
+      uptime_hours: number;
+    }>('/api/stats');
     
     return {
       totalPredictions: response.total_predictions,
-      accuracy: undefined,
-      fakePredictions: response.by_prediction?.FAKE || 0,
-      realPredictions: response.by_prediction?.REAL || 0,
-      inconclusivePredictions: response.by_prediction?.inconclusive || 0,
-      textPredictions: response.by_analysis_type?.text || 0,
-      urlPredictions: response.by_analysis_type?.url || 0,
-      filePredictions: response.by_analysis_type?.file || 0,
-      avgConfidence: 75, // Default since backend doesn't provide this
-      modelVersion: 'lightweight-v1.0',
-      uptimeHours: 24,
+      accuracy: response.model_accuracy,
+      fakePredictions: response.fake_predictions,
+      realPredictions: response.real_predictions,
+      inconclusivePredictions: response.inconclusive_predictions,
+      textPredictions: response.text_predictions || 0,
+      urlPredictions: response.url_predictions || 0,
+      filePredictions: response.file_predictions || 0,
+      avgConfidence: response.avg_confidence,
+      modelVersion: response.model_version,
+      uptimeHours: response.uptime_hours,
     };
   } catch (error) {
     console.warn('Stats API failed, using fallback data:', error);
@@ -307,25 +348,30 @@ export const getPredictionHistory = async (limit = 50, offset = 0): Promise<{
 }> => {
   try {
     const response = await apiRequest<{
-      history: any[];
-    }>(`/history`);
+      predictions: any[];
+      total: number;
+      page: number;
+      per_page: number;
+    }>(`/api/history?limit=${limit}&offset=${offset}`);
     
     return {
-      predictions: response.history.map((item: any) => ({
-        id: item.id?.toString() || 'unknown',
+      predictions: response.predictions.map((item: any) => ({
+        id: item.id || 'unknown',
         prediction: item.prediction?.toLowerCase() === 'fake' ? 'fake' : 'real',
         confidence: item.confidence || 0,
         explanation: item.explanation || 'No explanation available',
-        factors: [],
-        sources: [],
-        timestamp: item.created_at || new Date().toISOString(),
-        inputText: item.text || '',
-        modelVersion: 'lightweight-v1.0',
+        factors: item.factors || [],
+        sources: item.sources || [],
+        timestamp: item.timestamp || new Date().toISOString(),
+        inputText: item.input_text || item.inputText || '',
+        inputUrl: item.input_url || item.inputUrl,
+        modelVersion: item.model_version || 'original-v1.0',
+        processingTime: item.processing_time,
         analysis_type: item.analysis_type || 'text'
       })),
-      total: response.history.length,
-      page: 1,
-      perPage: response.history.length,
+      total: response.total,
+      page: response.page,
+      perPage: response.per_page,
     };
   } catch (error) {
     console.warn('History API failed, using localStorage fallback:', error);
@@ -360,15 +406,20 @@ export const checkHealth = async (): Promise<HealthStatus> => {
   try {
     const response = await apiRequest<{
       status: string;
-    }>('/health');
+      ml_model_loaded: boolean;
+      database_connected: boolean;
+      redis_connected: boolean;
+      model_version: string;
+      timestamp: string;
+    }>('/api/health');
     
     return {
       status: response.status,
-      mlModelLoaded: true,
-      databaseConnected: true,
-      redisConnected: false,
-      modelVersion: 'lightweight-v1.0',
-      timestamp: new Date().toISOString(),
+      mlModelLoaded: response.ml_model_loaded,
+      databaseConnected: response.database_connected,
+      redisConnected: response.redis_connected,
+      modelVersion: response.model_version,
+      timestamp: response.timestamp,
     };
   } catch (error) {
     console.warn('Health API failed, using fallback status:', error);
