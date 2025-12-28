@@ -232,6 +232,8 @@ async def predict(request: PredictionRequest):
         conn.commit()
         conn.close()
         
+        print(f"✅ Saved prediction: {prediction} ({confidence:.3f}) for '{text[:50]}...'")
+        
         return PredictionResponse(
             prediction=prediction,
             confidence=round(confidence, 3),
@@ -269,17 +271,20 @@ async def get_history():
                 
             history.append({
                 "id": row[0],
-                "text": row[1],
+                "text": row[1][:100] + "..." if len(row[1]) > 100 else row[1],  # Truncate long text
                 "prediction": row[2],
                 "confidence": row[3],
-                "analysis_type": row[4],
+                "analysis_type": row[4] or 'text',
                 "created_at": row[5],
-                "features": features
+                "features": features,
+                "timestamp": row[5]  # Add timestamp field for frontend compatibility
             })
         
+        print(f"📊 Returning {len(history)} history items")
         return {"history": history}
         
     except Exception as e:
+        print(f"❌ History error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get history: {str(e)}")
 
 @app.get("/stats")
@@ -296,19 +301,32 @@ async def get_stats():
         
         # By prediction type
         cursor.execute("SELECT prediction, COUNT(*) FROM predictions GROUP BY prediction")
-        by_prediction = dict(cursor.fetchall())
+        by_prediction_results = cursor.fetchall()
+        by_prediction = {}
+        for pred, count in by_prediction_results:
+            by_prediction[pred.upper()] = count  # Ensure uppercase for consistency
         
         # By analysis type
         cursor.execute("SELECT analysis_type, COUNT(*) FROM predictions GROUP BY analysis_type")
-        by_type = dict(cursor.fetchall())
+        by_type_results = cursor.fetchall()
+        by_analysis_type = {}
+        for atype, count in by_type_results:
+            by_analysis_type[atype or 'text'] = count
         
         conn.close()
         
-        return {
+        stats = {
             "total_predictions": total,
             "by_prediction": by_prediction,
-            "by_analysis_type": by_type
+            "by_analysis_type": by_analysis_type
         }
+        
+        print(f"📊 Stats: {stats}")
+        return stats
+        
+    except Exception as e:
+        print(f"❌ Stats error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
