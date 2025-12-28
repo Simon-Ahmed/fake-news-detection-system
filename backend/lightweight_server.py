@@ -194,7 +194,7 @@ def simple_fake_news_detection(text: str) -> tuple:
         prediction = "REAL"
         confidence = max(0.55, min(0.75, 1 - fake_score))
     
-    return prediction, confidence, features
+    return prediction, confidence, features, explanation_parts
 
 @app.get("/")
 async def root():
@@ -215,15 +215,15 @@ async def predict(request: PredictionRequest):
         
         print(f"🔍 Analyzing: '{text[:50]}...'")
         
-        # Get prediction
-        prediction, confidence, features = simple_fake_news_detection(text)
+        # Get prediction with detailed explanation
+        prediction, confidence, features, explanation_parts = simple_fake_news_detection(text)
         
-        # Create explanation
-        explanation_parts = []
-        if prediction == "FAKE":
-            explanation_parts.append("Text shows patterns commonly associated with misinformation")
-        else:
-            explanation_parts.append("Text appears to follow standard informational patterns")
+        # Create explanation from detection results
+        if not explanation_parts:
+            if prediction == "FAKE":
+                explanation_parts.append("Text shows patterns commonly associated with misinformation")
+            else:
+                explanation_parts.append("Text appears to follow standard informational patterns")
         
         explanation = ". ".join(explanation_parts) + "."
         
