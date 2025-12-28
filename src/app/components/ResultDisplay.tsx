@@ -55,8 +55,9 @@ export function ResultDisplay({ result, onFeedback }: ResultDisplayProps) {
   };
 
   const getConfidenceColor = () => {
-    if (result.confidence >= 80) return 'bg-green-500';
-    if (result.confidence >= 60) return 'bg-yellow-500';
+    const confidencePercent = result.confidence * 100;
+    if (confidencePercent >= 80) return 'bg-green-500';
+    if (confidencePercent >= 60) return 'bg-yellow-500';
     return 'bg-red-500';
   };
 
@@ -92,7 +93,7 @@ export function ResultDisplay({ result, onFeedback }: ResultDisplayProps) {
             <div>
               <h3 className="text-2xl">{getStatusText()}</h3>
               <p className="text-muted-foreground mt-1">
-                Confidence: {result.confidence}%
+                Confidence: {Math.round(result.confidence * 100)}%
               </p>
             </div>
           </div>
@@ -101,9 +102,9 @@ export function ResultDisplay({ result, onFeedback }: ResultDisplayProps) {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Confidence Level</span>
-              <span>{result.confidence}%</span>
+              <span>{Math.round(result.confidence * 100)}%</span>
             </div>
-            <Progress value={result.confidence} className={getConfidenceColor()} />
+            <Progress value={result.confidence * 100} className={getConfidenceColor()} />
           </div>
 
           <Separator />

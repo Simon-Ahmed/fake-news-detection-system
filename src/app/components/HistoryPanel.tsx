@@ -200,7 +200,7 @@ export function HistoryPanel({ onViewResult }: HistoryPanelProps) {
                   <span className="text-sm">{typeIcon}</span>
                   {getPredictionBadge(item.prediction)}
                   <span className="text-sm text-muted-foreground">
-                    {item.confidence || 0}% confidence
+                    {Math.round((item.confidence || 0) * 100)}% confidence
                   </span>
                   {item.processingTime && (
                     <span className="text-xs text-muted-foreground">
